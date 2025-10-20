@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "envmix"
+version = "0.1.0"
+description = "Pydantic v2 mixin to load settings from environment variables with robust casting"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+keywords = ["pydantic", "environment", "config", "settings", "dotenv"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = ["pydantic>=2.0"]
+
+[project.urls]
+Homepage = "https://github.com/c0sogi/envmix"
+Issues = "https://github.com/c0sogi/envmix/issues"
+
+[tool.hatch.build]
+include = ["envmix/**", "README.md", "LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["envmix"]
+only-include = ["envmix"]
+include = ["envmix/py.typed"]
