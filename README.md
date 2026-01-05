@@ -1,46 +1,52 @@
-envmix
-=====
+# envmix
 
 Typed environment loader for Pydantic v2 models.
 
-Features
-- **Simple**: `from_env()` fills fields from overrides > env vars > defaults
-- **Typed**: ships `py.typed`; works nicely with type checkers
-- **Robust casting**: JSON-first via TypeAdapter; CSV and k=v fallbacks
-
-Install
+## Install
 ```bash
 pip install envmix
 ```
+## Usage
+1. Import `EnvMixModel` from the envmix package.
+2. Define a model that extends `EnvMixModel`.
+3. Instantiate the model with either `.from_dotenv()` or `.from_env()` factory methods.
 
-Quick start
+### Quick start
 ```python
 from pydantic import BaseModel
 from envmix import EnvMixModel
 
-class DB(BaseModel):
-    host: str
-    port: int
-
 class Settings(EnvMixModel):
     __env_prefix__ = "APP_"
-    host: str = "127.0.0.1"
-    port: int = 8080
-    debug: bool = False
+    host: str = "127.0.0.1"  # APP_HOST
+    port: int = 8000  # APP_PORT
+    debug: bool = False  # APP_DEBUG
 
 # export APP_PORT=5000 APP_DEBUG=true
-s = Settings.from_env()
+s = Settings.from_dotenv()  # or Settings.from_env() to ignore .env file
+print(s.host)  # 127.0.0.1
 print(s.port)  # 5000
 print(s.debug) # True
 ```
 
-Custom env key per field
+### Custom env key per field
 ```python
 from pydantic import Field
+from envmix import EnvMixModel
 
 class Settings(EnvMixModel):
-    server_host: str = Field("0.0.0.0", json_schema_extra={"env": "SERVER_HOST"})
+    __env_prefix__ = "APP_"
+    host: str = Field("127.0.0.1", json_schema_extra={"env": "SERVER_HOST"})  # APP_SERVER_HOST
+    port: int = Field(8000, json_schema_extra={"prefix": False})  # PORT
+    debug: bool = Field(False, json_schema_extra={"env": "TEST", "prefix": False})  # TEST
+
+# export APP_SERVER_HOST=0.0.0.0 PORT=3000 TEST=true
+s = Settings.from_dotenv()  # or Settings.from_env() to ignore .env file
+print(s.host)  # 0.0.0.0
+print(s.port)  # 3000
+print(s.debug)  # True
 ```
 
-License
+
+### License
 MIT
