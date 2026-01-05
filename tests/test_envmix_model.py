@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from envmix import EnvMixModel
+from envmix import EnvMixModel, get_registered_envs, get_registered_models
 
 
 class TestEnvMixModel(unittest.TestCase):
@@ -28,7 +28,9 @@ class TestEnvMixModel(unittest.TestCase):
             mode: Literal["dev", "prod"] = "dev"  # JSON("prod") or raw "prod"
             db: DBConfig = DBConfig(host="localhost", port=5432)  # requires JSON
             log_path: Optional[Path] = None
-            server_host: str = Field("0.0.0.0", json_schema_extra={"env": "SERVER_HOST"})  # custom env name
+            server_host: str = Field(
+                "0.0.0.0", json_schema_extra={"env": "SERVER_HOST"}
+            )  # custom env name
 
         # ---- Env var injection (sample) ----
         os.environ["APP_PORT"] = "5000"  # int
@@ -39,8 +41,10 @@ class TestEnvMixModel(unittest.TestCase):
         os.environ["APP_MATRIX"] = "[[1,2],[3,4]]"  # list[list[int]] JSON
         os.environ["APP_META"] = "a=1,b=2"  # dict[str,int] k=v CSV
         os.environ["APP_KEYS"] = "alpha,beta,alpha"  # set[str] CSV (dedupe)
-        os.environ["APP_MODE"] = "prod"  # Literal (원문)
-        os.environ["APP_DB"] = '{"host":"db.local","port":15432}'  # nested BaseModel JSON
+        os.environ["APP_MODE"] = "prod"  # Literal (raw string)
+        os.environ["APP_DB"] = (
+            '{"host":"db.local","port":15432}'  # nested BaseModel JSON
+        )
         os.environ["APP_LOG_PATH"] = '"/var/log/app.log"'  # JSON string (with quotes)
         os.environ["APP_SERVER_HOST"] = "10.0.0.1"  # custom env name
 
@@ -69,7 +73,63 @@ class TestEnvMixModel(unittest.TestCase):
         print(cfg2.port)  # 9000
         assert cfg2.port == 9000
 
-        print("\n✅ ALL TESTS PASSED")
+        print("\n[OK] ALL TESTS PASSED")
+
+    def test_registry_functions(self) -> None:
+        """Test registry functions"""
+
+        # Define test models
+        class TestConfig1(EnvMixModel):
+            __env_prefix__ = "TEST1_"
+            host: str = "localhost"
+            port: int = 8080
+
+        class TestConfig2(EnvMixModel):
+            __env_prefix__ = "TEST2_"
+            debug: bool = False
+            name: str = "test"
+
+        # Check registered models (using module-level function)
+        models = get_registered_models()
+        assert len(models) >= 2  # At least 2 (TestConfig1, TestConfig2)
+
+        # Check if TestConfig1 is registered
+        assert TestConfig1 in models
+        assert models[TestConfig1]["host"] == "TEST1_HOST"
+        assert models[TestConfig1]["port"] == "TEST1_PORT"
+
+        # Check if TestConfig2 is registered
+        assert TestConfig2 in models
+        assert models[TestConfig2]["debug"] == "TEST2_DEBUG"
+        assert models[TestConfig2]["name"] == "TEST2_NAME"
+
+        # Check all environment variable info (using get_registered_envs)
+        env_vars = get_registered_envs()
+        assert "TEST1_HOST" in env_vars
+        assert "TEST1_PORT" in env_vars
+        assert "TEST2_DEBUG" in env_vars
+        assert "TEST2_NAME" in env_vars
+
+        # Check if TEST1_HOST is used for TestConfig1's host field
+        assert (TestConfig1, "host") in env_vars["TEST1_HOST"]
+        assert (TestConfig1, "port") in env_vars["TEST1_PORT"]
+        assert (TestConfig2, "debug") in env_vars["TEST2_DEBUG"]
+        assert (TestConfig2, "name") in env_vars["TEST2_NAME"]
+
+        print("\n--- Registered Models ---")
+        for model_cls, field_env_map in models.items():
+            print(f"  {model_cls.__name__}:")
+            for field_name, env_var in field_env_map.items():
+                print(f"    {field_name} -> {env_var}")
+
+        print("\n--- Models by Environment Variable ---")
+        for env_var, usages in env_vars.items():
+            if env_var.startswith("TEST1_") or env_var.startswith("TEST2_"):
+                print(f"  {env_var}:")
+                for model_cls, field_name in usages:
+                    print(f"    {model_cls.__name__}.{field_name}")
+
+        print("\n[OK] Registry functions test passed")
 
 
 if __name__ == "__main__":
